@@ -1,11 +1,6 @@
-export default function StudyMeta({
-  study,
-  onChange,
-  onSave,
-  onSheet,
-  status,
-  error,
-}) {
+export default function StudyMeta({ study, onChange, onSave, onSaveCopy, onSheet, status }) {
+  const saved = Boolean(study.id)
+
   return (
     <fieldset className="meta">
       <legend>Name this study</legend>
@@ -32,14 +27,19 @@ export default function StudyMeta({
       </div>
       <div className="meta__actions">
         <button type="button" className="btn btn--primary" onClick={onSave}>
-          Save study
+          {saved ? 'Update study' : 'Save study'}
         </button>
+        {saved ? (
+          <button type="button" className="btn" onClick={onSaveCopy}>
+            Save as new
+          </button>
+        ) : null}
         <button type="button" className="btn" onClick={onSheet}>
           Design sheet
         </button>
       </div>
       <p className="status" role="status" aria-live="polite">
-        {error || status}
+        {status}
       </p>
     </fieldset>
   )

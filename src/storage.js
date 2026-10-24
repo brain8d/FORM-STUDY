@@ -1,6 +1,6 @@
 import { constrainStudy } from './geometry.js'
 
-const KEY = 'form-study.v1'
+export const STORAGE_KEY = 'form-study.v1'
 
 function makeId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -24,7 +24,7 @@ function normalizeStudy(entry) {
 
 export function loadStudies() {
   try {
-    const raw = window.localStorage.getItem(KEY)
+    const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
       return { studies: [], error: null }
     }
@@ -46,7 +46,7 @@ export function loadStudies() {
 
 export function persistStudies(studies) {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(studies))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(studies))
     return { error: null }
   } catch (error) {
     if (error?.name === 'QuotaExceededError') {
@@ -67,6 +67,12 @@ export function createSavedStudy(draft) {
 }
 
 export function untitledName(studies) {
-  const next = studies.length + 1
-  return `Untitled study ${String(next).padStart(2, '0')}`
+  const used = new Set(studies.map((item) => item.name))
+  let next = studies.length + 1
+  let name = `Untitled study ${String(next).padStart(2, '0')}`
+  while (used.has(name)) {
+    next += 1
+    name = `Untitled study ${String(next).padStart(2, '0')}`
+  }
+  return name
 }

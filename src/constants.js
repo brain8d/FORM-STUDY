@@ -1,9 +1,9 @@
 export const APP_NAME = 'FORM / STUDY'
 
 export const DIMENSIONS = {
-  height: { min: 8, max: 42, step: 0.5, unit: 'cm', label: 'Height' },
-  width: { min: 7, max: 34, step: 0.5, unit: 'cm', label: 'Width' },
-  opening: { min: 3, max: 32, step: 0.5, unit: 'cm', label: 'Opening' },
+  height: { min: 8, max: 42, step: 0.1, unit: 'cm', label: 'Height' },
+  width: { min: 7, max: 34, step: 0.1, unit: 'cm', label: 'Width' },
+  opening: { min: 3, max: 34, step: 0.1, unit: 'cm', label: 'Opening' },
 }
 
 export const FORMS = [
@@ -12,18 +12,21 @@ export const FORMS = [
     label: 'Vessel',
     kicker: 'Shouldered',
     description: 'A gathered neck over a fuller body.',
+    openingNote: 'The neck stays inside the belly, so the drawing can show a shoulder.',
   },
   {
     id: 'cylinder',
     label: 'Cylinder',
     kicker: 'Upright',
     description: 'Quiet walls and a steady volume.',
+    openingNote: 'The lip stays near the wall.',
   },
   {
     id: 'bowl',
     label: 'Bowl',
     kicker: 'Open',
     description: 'A wide rim and a low, generous well.',
+    openingNote: 'The rim stays open, close to the widest point.',
   },
 ]
 
@@ -127,6 +130,12 @@ export const PALETTES = [
     speck: '#c5b89f',
   },
 ]
+
+export const FORM_PRESETS = {
+  vessel: { height: 22, width: 14, opening: 7.5 },
+  cylinder: { height: 28, width: 11, opening: 9.5 },
+  bowl: { height: 10, width: 26, opening: 24 },
+}
 
 export const DEFAULT_STUDY = {
   name: '',

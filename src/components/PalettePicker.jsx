@@ -1,29 +1,34 @@
-import { PALETTES } from '../constants.js'
+import { PALETTES, getPalette } from '../constants.js'
 
 export default function PalettePicker({ value, onChange }) {
+  const selected = getPalette(value)
+
   return (
     <fieldset className="chooser">
       <legend>Clay / glaze</legend>
-      <div className="swatches" role="radiogroup" aria-label="Clay and glaze palette">
+      <div className="swatches">
         {PALETTES.map((palette) => {
-          const selected = palette.id === value
+          const on = palette.id === value
           return (
-            <button
-              key={palette.id}
-              type="button"
-              className={selected ? 'swatch swatch--on' : 'swatch'}
-              role="radio"
-              aria-checked={selected}
-              aria-label={`${palette.name}, ${palette.note}`}
-              onClick={() => onChange(palette.id)}
-            >
+            <label key={palette.id} className={on ? 'swatch swatch--on' : 'swatch'}>
+              <input
+                type="radio"
+                name="clay-glaze"
+                value={palette.id}
+                checked={on}
+                onChange={() => onChange(palette.id)}
+              />
               <span className="swatch__chip" style={{ background: palette.glaze }} />
               <span className="swatch__clay" style={{ background: palette.clay }} />
               <span className="swatch__name">{palette.name}</span>
-            </button>
+            </label>
           )
         })}
       </div>
+      <p className="palette-note">
+        <span>{selected.name}</span>
+        {selected.note}
+      </p>
     </fieldset>
   )
 }

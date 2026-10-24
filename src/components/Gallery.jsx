@@ -1,29 +1,31 @@
+import { useState } from 'react'
 import { getForm, getPalette } from '../constants.js'
 import VesselIllustration from './VesselIllustration.jsx'
 
 function formatDate(iso) {
-  try {
-    return new Intl.DateTimeFormat('en', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date(iso))
-  } catch {
-    return ''
-  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
 }
 
-export default function Gallery({ studies, onOpen, onDelete, onSheet }) {
+export default function Gallery({ studies, notice, onOpen, onDelete, onSheet }) {
+  const [pendingId, setPendingId] = useState(null)
+
   return (
     <section className="gallery no-print" aria-labelledby="gallery-title">
       <div className="section-head">
         <p className="kicker">Archive</p>
         <h2 id="gallery-title">Saved studies</h2>
       </div>
+      {notice ? <p className="gallery__status">{notice}</p> : null}
       {studies.length === 0 ? (
         <p className="empty">
-          No studies saved yet. Name a form and keep it here — the archive stays
-          on this device.
+          The archive is empty. Name a form and it will stay on this device, ready
+          to reopen.
         </p>
       ) : (
         <ul className="gallery__list">
@@ -31,6 +33,7 @@ export default function Gallery({ studies, onOpen, onDelete, onSheet }) {
             const form = getForm(study.form)
             const palette = getPalette(study.paletteId)
             const titleId = `study-${study.id}`
+            const confirming = pendingId === study.id
             return (
               <li key={study.id} className="card">
                 <div className="card__art" aria-hidden="true">
@@ -43,21 +46,47 @@ export default function Gallery({ studies, onOpen, onDelete, onSheet }) {
                     {form.label} · {palette.name} · {study.finish}
                   </p>
                   {study.note ? <p className="card__note">{study.note}</p> : null}
-                  <div className="card__actions">
-                    <button type="button" className="btn btn--small" onClick={() => onOpen(study)}>
-                      Reopen
-                    </button>
-                    <button type="button" className="btn btn--small" onClick={() => onSheet(study)}>
-                      Sheet
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--small btn--danger"
-                      onClick={() => onDelete(study.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {confirming ? (
+                    <div className="confirm" role="group" aria-label={`Remove ${study.name}`}>
+                      <p>Remove “{study.name}” from this device?</p>
+                      <div className="card__actions">
+                        <button
+                          type="button"
+                          className="btn btn--small btn--danger"
+                          onClick={() => {
+                            setPendingId(null)
+                            onDelete(study.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--small"
+                          autoFocus
+                          onClick={() => setPendingId(null)}
+                        >
+                          Keep
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="card__actions">
+                      <button type="button" className="btn btn--small" onClick={() => onOpen(study)}>
+                        Reopen
+                      </button>
+                      <button type="button" className="btn btn--small" onClick={() => onSheet(study)}>
+                        Sheet
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--small btn--danger"
+                        onClick={() => setPendingId(study.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             )
