@@ -152,6 +152,14 @@ function radiusFn(form, halfW, halfO) {
     )
 }
 
+// Radius of the wall from foot (t = 0) to lip (t = 1).
+// Width and opening are diameters in the same units the caller uses.
+export function makeProfile(study) {
+  const halfW = toNumber(study.width, DEFAULT_STUDY.width) / 2
+  const halfO = toNumber(study.opening, DEFAULT_STUDY.opening) / 2
+  return radiusFn(getForm(study.form).id, halfW, halfO)
+}
+
 function sampleProfile(fn, top, footTop, steps = 80) {
   const right = []
   for (let i = 0; i <= steps; i += 1) {
@@ -204,7 +212,11 @@ export function getIllustration(study, options = {}) {
   const base = BOARD.base
   const footTop = base - footH
   const top = base - heightPx
-  const fn = radiusFn(study.form, halfW, halfO)
+  const fn = makeProfile({
+    form: study.form,
+    width: study.width * PX,
+    opening: study.opening * PX,
+  })
   const right = sampleProfile(fn, top, footTop)
   const left = right.map(([x, y]) => [BOARD.cx - (x - BOARD.cx), y]).reverse()
   const footR = fn(0)

@@ -16,6 +16,7 @@ import Gallery from './components/Gallery.jsx'
 import PalettePicker from './components/PalettePicker.jsx'
 import StudyMeta from './components/StudyMeta.jsx'
 import VesselIllustration from './components/VesselIllustration.jsx'
+import VesselView from './components/VesselView.jsx'
 import './App.css'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
   const [status, setStatus] = useState('')
   const [sheetStudy, setSheetStudy] = useState(null)
   const [presets, setPresets] = useState(FORM_PRESETS)
+  const [view, setView] = useState('drawing')
 
   useEffect(() => {
     function onStorage(event) {
@@ -161,7 +163,11 @@ export default function App() {
           <div className="stage__rule" aria-hidden="true" />
           <p className="kicker">Live study</p>
           <h2 id={titleId}>{current.name.trim() || 'Untitled form'}</h2>
-          <VesselIllustration study={current} labelledBy={titleId} />
+          {view === 'clay' ? (
+            <VesselView study={current} labelledBy={titleId} />
+          ) : (
+            <VesselIllustration study={current} labelledBy={titleId} />
+          )}
           <dl className="measures">
             <div>
               <dt>Height</dt>
@@ -176,9 +182,20 @@ export default function App() {
               <dd>{formatStudioValue(current.opening, 'cm')}</dd>
             </div>
           </dl>
-          <p className="stage__caption">
-            Flat vector study · {getForm(current.form).label} · {getFinish(current.finish).label}
-          </p>
+          <div className="stage__foot">
+            <div className="stage__switch" role="group" aria-label="Study view">
+              <button type="button" aria-pressed={view === 'drawing'} onClick={() => setView('drawing')}>
+                Drawing
+              </button>
+              <button type="button" aria-pressed={view === 'clay'} onClick={() => setView('clay')}>
+                Clay
+              </button>
+            </div>
+            <p className="stage__caption">
+              {view === 'clay' ? 'Turned study · drag to turn' : 'Flat vector study'} · {getForm(current.form).label} ·{' '}
+              {getFinish(current.finish).label}
+            </p>
+          </div>
         </div>
 
         <form className="studio__controls" onSubmit={(event) => event.preventDefault()}>
