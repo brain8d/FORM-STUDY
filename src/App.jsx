@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { APP_NAME, DEFAULT_STUDY, FORM_PRESETS, getFinish, getForm } from './constants.js'
 import { formatStudioValue, presentStudy } from './geometry.js'
 import {
@@ -16,6 +16,9 @@ import Gallery from './components/Gallery.jsx'
 import PalettePicker from './components/PalettePicker.jsx'
 import StudyMeta from './components/StudyMeta.jsx'
 import VesselIllustration from './components/VesselIllustration.jsx'
+import { DEFAULT_CLAY } from './clay/model.js'
+
+const ClayStudio = lazy(() => import('./clay/ClayStudio.jsx'))
 import './App.css'
 
 export default function App() {
@@ -26,6 +29,8 @@ export default function App() {
   const [status, setStatus] = useState('')
   const [sheetStudy, setSheetStudy] = useState(null)
   const [presets, setPresets] = useState(FORM_PRESETS)
+  const [view, setView] = useState('drawing')
+  const [clay, setClay] = useState(DEFAULT_CLAY)
 
   useEffect(() => {
     function onStorage(event) {
@@ -125,17 +130,38 @@ export default function App() {
   }
 
   return (
-    <div className="page">
-      <a className="skip" href="#studio">
+    <div className={view === 'clay' ? 'page page--clay' : 'page'}>
+      <a className="skip" href={view === 'clay' ? '#clay' : '#studio'}>
         Skip to studio
       </a>
 
       <header className="masthead no-print">
         <p className="kicker">Birthday edition</p>
         <p className="wordmark">{APP_NAME}</p>
-        <p className="masthead__aside">A private studio notebook</p>
+        <div className="masthead__aside">
+          <div className="stage__switch" role="group" aria-label="Studio mode">
+            <button type="button" aria-pressed={view === 'drawing'} onClick={() => setView('drawing')}>
+              Drawing
+            </button>
+            <button type="button" aria-pressed={view === 'clay'} onClick={() => setView('clay')}>
+              Clay
+            </button>
+          </div>
+        </div>
       </header>
 
+      {storageError ? (
+        <p className="banner no-print" role="alert">
+          {storageError}
+        </p>
+      ) : null}
+
+      {view === 'clay' ? (
+        <Suspense fallback={<p className="clay__loading">Turning the wheel…</p>}>
+          <ClayStudio study={clay} onChange={setClay} />
+        </Suspense>
+      ) : (
+        <>
       <section className="intro no-print" aria-labelledby="intro-title">
         <p className="intro__mark">No. 01</p>
         <div>
@@ -149,12 +175,6 @@ export default function App() {
           </p>
         </div>
       </section>
-
-      {storageError ? (
-        <p className="banner no-print" role="alert">
-          {storageError}
-        </p>
-      ) : null}
 
       <section className="studio no-print" id="studio" aria-labelledby={titleId}>
         <div className="studio__stage">
@@ -213,6 +233,8 @@ export default function App() {
         </p>
         <p className="closing__sign">{APP_NAME}</p>
       </footer>
+        </>
+      )}
 
       <div className="print-root" hidden>
         <SheetPage study={printable} />
