@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { APP_NAME, DEFAULT_STUDY, FORM_PRESETS, getFinish, getForm } from './constants.js'
-import { formatStudioValue, presentStudy } from './geometry.js'
+import { curvePhrase, formatStudioValue, presentStudy } from './geometry.js'
 import {
   STORAGE_KEY,
   createSavedStudy,
@@ -18,6 +18,13 @@ import StudyMeta from './components/StudyMeta.jsx'
 import VesselIllustration from './components/VesselIllustration.jsx'
 import './App.css'
 
+const CHAPTERS = [
+  { id: 'form', label: 'Form' },
+  { id: 'wall', label: 'Wall' },
+  { id: 'surface', label: 'Surface' },
+  { id: 'note', label: 'Note' },
+]
+
 export default function App() {
   const titleId = useId()
   const [study, setStudy] = useState(() => presentStudy(DEFAULT_STUDY))
@@ -26,6 +33,8 @@ export default function App() {
   const [status, setStatus] = useState('')
   const [sheetStudy, setSheetStudy] = useState(null)
   const [presets, setPresets] = useState(FORM_PRESETS)
+  const [chapter, setChapter] = useState('wall')
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   useEffect(() => {
     function onStorage(event) {
@@ -50,6 +59,7 @@ export default function App() {
           height: current.height,
           width: current.width,
           opening: current.opening,
+          curve: current.curve,
         },
       }
       setPresets(nextPresets)
@@ -104,7 +114,12 @@ export default function App() {
     setStudy(next)
     setPresets((prev) => ({
       ...prev,
-      [next.form]: { height: next.height, width: next.width, opening: next.opening },
+      [next.form]: {
+        height: next.height,
+        width: next.width,
+        opening: next.opening,
+        curve: next.curve,
+      },
     }))
     setStatus(`Reopened “${next.name}”.`)
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -115,6 +130,21 @@ export default function App() {
   }
 
   const closeSheet = useCallback(() => setSheetStudy(null), [])
+
+  function onChapterKey(event) {
+    const order = CHAPTERS.map((item) => item.id)
+    const index = order.indexOf(chapter)
+    let next = index
+    if (event.key === 'ArrowRight') next = (index + 1) % order.length
+    else if (event.key === 'ArrowLeft') next = (index - 1 + order.length) % order.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = order.length - 1
+    else return
+    event.preventDefault()
+    const id = order[next]
+    setChapter(id)
+    document.getElementById(`chapter-${id}`)?.focus()
+  }
 
   function handleDelete(id) {
     const next = studies.filter((item) => item.id !== id)
@@ -131,24 +161,16 @@ export default function App() {
       </a>
 
       <header className="masthead no-print">
-        <p className="kicker">Birthday edition</p>
         <p className="wordmark">{APP_NAME}</p>
-        <p className="masthead__aside">A private studio notebook</p>
-      </header>
-
-      <section className="intro no-print" aria-labelledby="intro-title">
-        <p className="intro__mark">No. 01</p>
-        <div>
-          <p className="kicker">For your birthday</p>
-          <h1 id="intro-title">A studio of proportion, made for your hands.</h1>
-          <p className="lede">
+        <details className="dedication">
+          <summary>For your birthday</summary>
+          <p>
             You already think in clay before you think in words. This is a quiet
             desk for a vessel, a cylinder or a bowl — height against opening, glaze
-            against clay — and a place to keep the studies that feel inevitable. A
-            birthday page for the next form.
+            against clay — and a place to keep the studies that feel inevitable.
           </p>
-        </div>
-      </section>
+        </details>
+      </header>
 
       {storageError ? (
         <p className="banner no-print" role="alert">
@@ -156,11 +178,90 @@ export default function App() {
         </p>
       ) : null}
 
-      <section className="studio no-print" id="studio" aria-labelledby={titleId}>
-        <div className="studio__stage">
+      <section className="folio no-print" id="studio" aria-labelledby={titleId}>
+        <div className="folio__instrument">
+        <div className="folio__chapters" role="tablist" aria-label="Studio controls" onKeyDown={onChapterKey}>
+          {CHAPTERS.map((item) => {
+            const selected = chapter === item.id
+            return (
+              <button
+                key={item.id}
+                id={`chapter-${item.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls="studio-panel"
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setChapter(item.id)}
+              >
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="folio__band">
+        <form
+          id="studio-panel"
+          className="folio__panel"
+          role="tabpanel"
+          aria-labelledby={`chapter-${chapter}`}
+          hidden={archiveOpen}
+          onSubmit={(event) => event.preventDefault()}
+        >
+          {chapter === 'form' ? (
+            <FormPicker value={current.form} onChange={(value) => update('form', value)} />
+          ) : null}
+          {chapter === 'wall' ? <DimensionControls study={current} onChange={update} /> : null}
+          {chapter === 'surface' ? (
+            <>
+              <PalettePicker value={current.paletteId} onChange={(value) => update('paletteId', value)} />
+              <FinishPicker value={current.finish} onChange={(value) => update('finish', value)} />
+            </>
+          ) : null}
+          {chapter === 'note' ? (
+            <StudyMeta
+              study={current}
+              onChange={update}
+              onSave={() => handleSave(false)}
+              onSaveCopy={() => handleSave(true)}
+              onSheet={() => setSheetStudy(current)}
+            />
+          ) : null}
+        </form>
+
+        <div id="archive" className="folio__panel folio__drawer" hidden={!archiveOpen}>
+          <Gallery
+            embedded
+            studies={studies}
+            onOpen={handleOpen}
+            onDelete={handleDelete}
+            onSheet={(entry) => setSheetStudy(presentStudy(entry))}
+          />
+        </div>
+        </div>
+
+        <div className="folio__foot">
+          <p className="status" role="status" aria-live="polite">
+            {status}
+          </p>
+          <button
+            type="button"
+            className="archive-toggle"
+            aria-expanded={archiveOpen}
+            aria-controls="archive"
+            onClick={() => setArchiveOpen((open) => !open)}
+          >
+            Saved studies
+            <span>{studies.length}</span>
+          </button>
+          <p className="folio__sign">Keep the ones that sit quietly in the mind. Happy birthday.</p>
+        </div>
+        </div>
+
+        <div className="folio__stage">
           <div className="stage__rule" aria-hidden="true" />
-          <p className="kicker">Live study</p>
-          <h2 id={titleId}>{current.name.trim() || 'Untitled form'}</h2>
+          <h1 id={titleId}>{current.name.trim() || 'Untitled form'}</h1>
           <VesselIllustration study={current} labelledBy={titleId} />
           <dl className="measures">
             <div>
@@ -175,44 +276,17 @@ export default function App() {
               <dt>Opening</dt>
               <dd>{formatStudioValue(current.opening, 'cm')}</dd>
             </div>
+            <div>
+              <dt>Curve</dt>
+              <dd>{current.curve.toFixed(1)}</dd>
+            </div>
           </dl>
           <p className="stage__caption">
-            Flat vector study · {getForm(current.form).label} · {getFinish(current.finish).label}
+            Flat vector study · {getForm(current.form).label} · {curvePhrase(current.form, current.curve)} ·{' '}
+            {getFinish(current.finish).label}
           </p>
         </div>
-
-        <form className="studio__controls" onSubmit={(event) => event.preventDefault()}>
-          <FormPicker value={current.form} onChange={(value) => update('form', value)} />
-          <DimensionControls study={current} onChange={update} />
-          <PalettePicker value={current.paletteId} onChange={(value) => update('paletteId', value)} />
-          <FinishPicker value={current.finish} onChange={(value) => update('finish', value)} />
-          <StudyMeta
-            study={current}
-            onChange={update}
-            onSave={() => handleSave(false)}
-            onSaveCopy={() => handleSave(true)}
-            onSheet={() => setSheetStudy(current)}
-            status={status}
-          />
-        </form>
       </section>
-
-      <Gallery
-        studies={studies}
-        notice={status}
-        onOpen={handleOpen}
-        onDelete={handleDelete}
-        onSheet={(entry) => setSheetStudy(presentStudy(entry))}
-      />
-
-      <footer className="closing no-print">
-        <p className="kicker">After the wheel</p>
-        <p className="closing__line">
-          Keep the ones that sit quietly in the mind. Happy birthday. May the next
-          form surprise you.
-        </p>
-        <p className="closing__sign">{APP_NAME}</p>
-      </footer>
 
       <div className="print-root" hidden>
         <SheetPage study={printable} />

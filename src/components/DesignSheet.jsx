@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { APP_NAME, DIMENSIONS, getFinish, getForm, getPalette } from '../constants.js'
-import { formatStudioValue } from '../geometry.js'
+import { curvePhrase, formatStudioValue } from '../geometry.js'
 import VesselIllustration from './VesselIllustration.jsx'
 
 function formatDate(iso) {
@@ -45,6 +45,13 @@ export function SheetPage({ study, titleId }) {
           <div>
             <dt>{DIMENSIONS.opening.label}</dt>
             <dd>{formatStudioValue(study.opening, DIMENSIONS.opening.unit)}</dd>
+          </div>
+          <div>
+            <dt>{DIMENSIONS.curve.label}</dt>
+            <dd>
+              {Number(study.curve).toFixed(1)}
+              <span>{curvePhrase(study.form, study.curve)}</span>
+            </dd>
           </div>
           <div>
             <dt>Palette</dt>

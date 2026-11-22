@@ -3,8 +3,17 @@ import { DIMENSIONS, DEFAULT_STUDY, getFinish, getForm, getPalette } from './con
 // Flat study geometry for the drawing board.
 // Centimetres here are sketch units. They do not describe shrinkage, wall thickness, or firing.
 
-const BOARD = { w: 240, h: 304, cx: 120, base: 274 }
 const PX = 214 / DIMENSIONS.height.max
+const MAX_HALF = (DIMENSIONS.opening.max * PX) / 2
+const BOARD_PAD_X = 32
+const BOARD = {
+  w: MAX_HALF * 2 + BOARD_PAD_X * 2,
+  h: 304,
+  cx: MAX_HALF + BOARD_PAD_X,
+  base: 274,
+}
+// Keeps a normal body the same size on the board. A wider mouth grows the frame.
+const COMFORT_HALF = (DIMENSIONS.width.max * PX) / 2 + 28
 
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -49,15 +58,16 @@ export function openingLimits(form, width) {
   )
   let min
   let max
+  // The mouth may flare past the body. Only the narrow end is tied to the form.
   if (form === 'bowl') {
-    min = safeWidth * 0.72
-    max = safeWidth * 0.98
+    min = safeWidth * 0.62
+    max = DIMENSIONS.opening.max
   } else if (form === 'cylinder') {
-    min = safeWidth * 0.55
-    max = safeWidth * 0.96
+    min = Math.max(DIMENSIONS.opening.min, safeWidth * 0.35)
+    max = DIMENSIONS.opening.max
   } else {
-    min = Math.max(DIMENSIONS.opening.min, safeWidth * 0.22)
-    max = safeWidth * 0.78
+    min = Math.max(DIMENSIONS.opening.min, safeWidth * 0.18)
+    max = DIMENSIONS.opening.max
   }
 
   min = clamp(round1(min), DIMENSIONS.opening.min, DIMENSIONS.opening.max)
@@ -84,6 +94,11 @@ export function constrainStudy(input = {}) {
     DIMENSIONS.width.max,
   )
   const opening = constrainOpening(form, width, input.opening)
+  const curve = clamp(
+    toNumber(input.curve, defaultCurve(form)),
+    DIMENSIONS.curve.min,
+    DIMENSIONS.curve.max,
+  )
 
   return {
     name: String(input.name ?? '').slice(0, 48),
@@ -92,9 +107,35 @@ export function constrainStudy(input = {}) {
     height: round1(height),
     width: round1(width),
     opening: round1(opening),
+    curve: round1(curve),
     paletteId: getPalette(input.paletteId).id,
     finish: getFinish(input.finish).id,
   }
+}
+
+function defaultCurve(form) {
+  return form === 'cylinder' ? 0 : 10
+}
+
+export function curvePhrase(form, value) {
+  const curve = toNumber(value, defaultCurve(form))
+  if (form === 'cylinder' && Math.abs(curve) <= 0.5) return 'Straight wall'
+  if (curve <= -6) return 'Reverse taper'
+  if (curve < -0.5) return 'Slight reverse'
+  if (curve <= 0.5) return 'Single curve'
+  if (curve < 6) return 'Soft belly'
+  return 'Gathered'
+}
+
+export function curveNote(form, value) {
+  const here = curvePhrase(form, value)
+  if (form === 'cylinder') {
+    return `${here}. Zero holds a straight wall. Below zero the wall leans outward. Above zero a belly softens into the wall.`
+  }
+  if (form === 'bowl') {
+    return `${here}. Zero is one curve from foot to rim. Below zero the wall straightens into a reverse taper. Above zero the belly gathers.`
+  }
+  return `${here}. Zero is one continuous curve. Below zero the wall leans outward in a reverse taper. Above zero the shoulder gathers.`
 }
 
 export function presentStudy(input = {}) {
@@ -107,49 +148,126 @@ export function presentStudy(input = {}) {
   }
 }
 
-function radiusFn(form, halfW, halfO) {
-  const lip = Math.min(halfO, halfW)
+function cosineHump(t, foot, belly, lip, peak) {
+  if (t <= peak) {
+    const eased = (1 - Math.cos((t / peak) * Math.PI)) / 2
+    return lerp(foot, belly, eased)
+  }
+  const eased = (1 - Math.cos(((t - peak) / (1 - peak)) * Math.PI)) / 2
+  return lerp(belly, lip, eased)
+}
+
+function cylinderStraight(halfW, halfO) {
+  const join = 0.9
+  return (t) => {
+    if (t <= 0.05) return lerp(halfW * 0.9, halfW, t / 0.05)
+    if (t <= join) return halfW
+    return lerp(halfW, halfO, (t - join) / (1 - join))
+  }
+}
+
+function singleProfile(form, halfW, halfO) {
+  if (form === 'cylinder') return cylinderStraight(halfW, halfO)
 
   if (form === 'bowl') {
+    const foot = Math.min(halfW, halfO) * 0.32
+    if (halfO >= halfW * 0.96) {
+      return (t) => lerp(foot, halfO, Math.sin((t * Math.PI) / 2))
+    }
+    return (t) => cosineHump(t, foot, halfW, halfO, 0.62)
+  }
+
+  const foot = halfW * 0.55
+  const peak = halfO >= halfW ? 0.78 : 0.5
+  const belly = Math.max(halfW, halfO)
+  return (t) => cosineHump(t, foot, belly, halfO, peak)
+}
+
+function gatheredProfile(form, halfW, halfO) {
+  if (form === 'cylinder') {
+    const belly = halfW * 1.12
+    return (t) => {
+      if (t <= 0.06) return lerp(halfW * 0.9, halfW, t / 0.06)
+      if (t <= 0.86) return halfW + (belly - halfW) * Math.sin(((t - 0.06) / 0.8) * Math.PI)
+      return lerp(halfW, halfO, (t - 0.86) / 0.14)
+    }
+  }
+
+  if (form === 'bowl') {
+    const belly = Math.max(halfW, halfO)
     return (t) =>
       mixFrames(
         [
           { t: 0, r: halfW * 0.4 },
-          { t: 0.22, r: halfW * 0.68 },
-          { t: 0.55, r: halfW * 0.9 },
-          { t: 0.8, r: lerp(halfW * 0.96, lip, 0.72) },
-          { t: 1, r: lip },
+          { t: 0.22, r: lerp(halfW * 0.4, belly, 0.45) },
+          { t: 0.58, r: lerp(halfW, belly, 0.82) },
+          { t: 0.84, r: lerp(halfW, halfO, 0.55) },
+          { t: 1, r: halfO },
         ],
         t,
       )
   }
 
-  if (form === 'cylinder') {
+  if (halfO >= halfW) {
     return (t) =>
       mixFrames(
         [
-          { t: 0, r: halfW * 0.84 },
-          { t: 0.12, r: halfW * 0.98 },
-          { t: 0.82, r: lerp(halfW, lip, 0.18) },
-          { t: 1, r: Math.min(halfW, lip * 1.02) },
+          { t: 0, r: halfW * 0.5 },
+          { t: 0.16, r: halfW * 0.78 },
+          { t: 0.4, r: halfW },
+          { t: 0.78, r: halfW },
+          { t: 1, r: halfO },
         ],
         t,
       )
   }
 
-  const neck = Math.min(Math.max(lip, halfW * 0.34), halfW * 0.78)
   return (t) =>
     mixFrames(
       [
         { t: 0, r: halfW * 0.5 },
-        { t: 0.18, r: halfW * 0.78 },
-        { t: 0.42, r: halfW },
-        { t: 0.64, r: halfW * 0.84 },
-        { t: 0.84, r: neck },
-        { t: 1, r: Math.min(halfW, neck * 1.04) },
+        { t: 0.16, r: halfW * 0.78 },
+        { t: 0.4, r: halfW },
+        { t: 0.66, r: lerp(halfW, halfO, 0.28) },
+        { t: 0.86, r: lerp(halfW * 0.55, halfO, 0.75) },
+        { t: 1, r: halfO },
       ],
       t,
     )
+}
+
+function reverseProfile(form, halfW, halfO) {
+  const foot = halfW * (form === 'bowl' ? 0.48 : form === 'cylinder' ? 0.7 : 0.46)
+  const shoulder = Math.max(halfW * (form === 'bowl' ? 1 : 1.12), halfO)
+  if (halfO >= shoulder * 0.98) return (t) => lerp(foot, halfO, t)
+
+  // Straight outward wall, then a short turn that keeps the incoming slope.
+  const hold = form === 'bowl' ? 0.7 : 0.58
+  const atHold = lerp(foot, shoulder, 0.9)
+  const slope = ((atHold - foot) / hold) * (1 - hold) * 0.55
+  return (t) => {
+    if (t <= hold) return lerp(foot, atHold, t / hold)
+    const u = (t - hold) / (1 - hold)
+    const u2 = u * u
+    const u3 = u2 * u
+    return (2 * u3 - 3 * u2 + 1) * atHold + (u3 - 2 * u2 + u) * slope + (-2 * u3 + 3 * u2) * halfO
+  }
+}
+
+function radiusFn(form, halfW, halfO, curve) {
+  const k = clamp(toNumber(curve, defaultCurve(form)), DIMENSIONS.curve.min, DIMENSIONS.curve.max) / 10
+  const single = singleProfile(form, halfW, halfO)
+  const other = k >= 0 ? gatheredProfile(form, halfW, halfO) : reverseProfile(form, halfW, halfO)
+  const amount = Math.abs(k)
+  return (t) => lerp(single(t), other(t), amount)
+}
+
+// Radius of the wall from foot (t = 0) to lip (t = 1).
+// Width and opening are diameters in the same units the caller uses.
+export function makeProfile(study) {
+  const halfW = toNumber(study.width, DEFAULT_STUDY.width) / 2
+  const halfO = toNumber(study.opening, DEFAULT_STUDY.opening) / 2
+  return radiusFn(getForm(study.form).id, halfW, halfO, study.curve)
 }
 
 function sampleProfile(fn, top, footTop, steps = 80) {
@@ -204,11 +322,19 @@ export function getIllustration(study, options = {}) {
   const base = BOARD.base
   const footTop = base - footH
   const top = base - heightPx
-  const fn = radiusFn(study.form, halfW, halfO)
+  const shaped = makeProfile({
+    form: study.form,
+    width: study.width * PX,
+    opening: study.opening * PX,
+    curve: study.curve,
+  })
+  const fn = (t) => Math.max(1.2, shaped(t))
   const right = sampleProfile(fn, top, footTop)
   const left = right.map(([x, y]) => [BOARD.cx - (x - BOARD.cx), y]).reverse()
   const footR = fn(0)
   const lipR = fn(1)
+  let peakR = Math.max(footR, lipR)
+  for (let i = 1; i < 40; i += 1) peakR = Math.max(peakR, fn(i / 40))
 
   let bodyPath = `M ${left[0][0].toFixed(2)} ${left[0][1].toFixed(2)}`
   bodyPath += lineThrough(left)
@@ -220,12 +346,10 @@ export function getIllustration(study, options = {}) {
   const seam = footTop - 0.8
   const minY = clamp(top - rimRy - 18, 0, BOARD.h)
   const maxY = clamp(base + 16, 0, BOARD.h)
-  let minX = 0
-  let maxX = BOARD.w
-  if (options.crop) {
-    minX = clamp(BOARD.cx - halfW - 18, 0, BOARD.w)
-    maxX = clamp(BOARD.cx + halfW + 18, 0, BOARD.w)
-  }
+  const reach = Math.max(halfW, lipR, footR, peakR)
+  const halfSpan = options.crop ? reach + 16 : Math.max(COMFORT_HALF, reach + 20)
+  const minX = clamp(BOARD.cx - halfSpan, 0, BOARD.w)
+  const maxX = clamp(BOARD.cx + halfSpan, 0, BOARD.w)
   const viewBox = `${minX.toFixed(1)} ${minY.toFixed(1)} ${(maxX - minX).toFixed(1)} ${(maxY - minY).toFixed(1)}`
 
   return {
@@ -258,7 +382,11 @@ export function getIllustration(study, options = {}) {
       rx: Math.max(1.8, lipR * 0.8),
       ry: Math.max(1.4, rimRy * 0.62),
     },
-    ground: { x1: 36, x2: 204, y: base },
+    ground: {
+      x1: BOARD.cx - Math.max(reach, halfW) * 0.9 - 10,
+      x2: BOARD.cx + Math.max(reach, halfW) * 0.9 + 10,
+      y: base,
+    },
     highlightPath: buildHighlight(fn, top, footTop),
     ribs: buildRibs(fn, top, footTop, study.form),
     profile: fn,
@@ -305,8 +433,10 @@ export function formatStudioValue(value, unit) {
 export function readStudioNumber(raw, min, max) {
   const trimmed = String(raw ?? '').trim().replace(',', '.')
   if (!trimmed) return { error: 'Enter a number.' }
-  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
-    return { error: 'Use a plain number, such as 18.5.' }
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return {
+      error: min < 0 ? 'Use a plain number, such as -2.5.' : 'Use a plain number, such as 18.5.',
+    }
   }
   const value = round1(Number(trimmed))
   if (value < min || value > max) {

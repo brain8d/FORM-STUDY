@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { DIMENSIONS, getFinish, getForm, getPalette } from '../constants.js'
-import { formatStudioValue, getIllustration, getSpeckles } from '../geometry.js'
+import { curvePhrase, formatStudioValue, getIllustration, getSpeckles } from '../geometry.js'
 
 function channel(hex, index) {
   return Number.parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16)
@@ -44,7 +44,8 @@ export default function VesselIllustration({ study, compact = false, labelledBy 
     `Flat vector study of a ${getForm(study.form).label.toLowerCase()}.`,
     `Height ${formatStudioValue(study.height, DIMENSIONS.height.unit)},`,
     `width ${formatStudioValue(study.width, DIMENSIONS.width.unit)},`,
-    `opening ${formatStudioValue(study.opening, DIMENSIONS.opening.unit)}.`,
+    `opening ${formatStudioValue(study.opening, DIMENSIONS.opening.unit)},`,
+    `${curvePhrase(study.form, study.curve).toLowerCase()}.`,
     `${palette.name} palette, ${getFinish(study.finish).label.toLowerCase()} surface.`,
     'Sketch proportions only, not a throwing plan or a firing prediction.',
   ].join(' ')

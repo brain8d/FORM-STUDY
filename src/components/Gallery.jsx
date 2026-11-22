@@ -12,15 +12,24 @@ function formatDate(iso) {
   }).format(date)
 }
 
-export default function Gallery({ studies, notice, onOpen, onDelete, onSheet }) {
+export default function Gallery({ studies, notice, onOpen, onDelete, onSheet, embedded = false }) {
   const [pendingId, setPendingId] = useState(null)
 
   return (
-    <section className="gallery no-print" aria-labelledby="gallery-title">
-      <div className="section-head">
-        <p className="kicker">Archive</p>
-        <h2 id="gallery-title">Saved studies</h2>
-      </div>
+    <section
+      className={embedded ? 'gallery gallery--embedded no-print' : 'gallery no-print'}
+      aria-labelledby="gallery-title"
+    >
+      {embedded ? (
+        <h2 id="gallery-title" className="visually-hidden">
+          Saved studies
+        </h2>
+      ) : (
+        <div className="section-head">
+          <p className="kicker">Archive</p>
+          <h2 id="gallery-title">Saved studies</h2>
+        </div>
+      )}
       {notice ? <p className="gallery__status">{notice}</p> : null}
       {studies.length === 0 ? (
         <p className="empty">

@@ -144,8 +144,10 @@ svg {
 
   .page {
     width: auto;
+    height: auto;
     margin: 0;
     padding: 0;
+    overflow: visible;
   }
 
   .print-root,

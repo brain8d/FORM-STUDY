@@ -1,4 +1,4 @@
-export default function StudyMeta({ study, onChange, onSave, onSaveCopy, onSheet, status }) {
+export default function StudyMeta({ study, onChange, onSave, onSaveCopy, onSheet }) {
   const saved = Boolean(study.id)
 
   return (
@@ -18,7 +18,7 @@ export default function StudyMeta({ study, onChange, onSave, onSaveCopy, onSheet
         <label htmlFor="study-note">Note</label>
         <textarea
           id="study-note"
-          rows={3}
+          rows={2}
           maxLength={280}
           placeholder="A short intention for the wheel."
           value={study.note}
@@ -38,9 +38,6 @@ export default function StudyMeta({ study, onChange, onSave, onSaveCopy, onSheet
           Design sheet
         </button>
       </div>
-      <p className="status" role="status" aria-live="polite">
-        {status}
-      </p>
     </fieldset>
   )
 }

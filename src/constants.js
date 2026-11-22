@@ -3,7 +3,8 @@ export const APP_NAME = 'FORM / STUDY'
 export const DIMENSIONS = {
   height: { min: 8, max: 42, step: 0.1, unit: 'cm', label: 'Height' },
   width: { min: 7, max: 34, step: 0.1, unit: 'cm', label: 'Width' },
-  opening: { min: 3, max: 34, step: 0.1, unit: 'cm', label: 'Opening' },
+  opening: { min: 3, max: 48, step: 0.1, unit: 'cm', label: 'Opening' },
+  curve: { min: -10, max: 10, step: 0.1, unit: '', label: 'Curve' },
 }
 
 export const FORMS = [
@@ -12,21 +13,21 @@ export const FORMS = [
     label: 'Vessel',
     kicker: 'Shouldered',
     description: 'A gathered neck over a fuller body.',
-    openingNote: 'The neck stays inside the belly, so the drawing can show a shoulder.',
+    openingNote: 'The mouth can sit inside the belly or flare wider than it.',
   },
   {
     id: 'cylinder',
     label: 'Cylinder',
     kicker: 'Upright',
     description: 'Quiet walls and a steady volume.',
-    openingNote: 'The lip stays near the wall.',
+    openingNote: 'The lip can match the wall, draw in, or flare past it.',
   },
   {
     id: 'bowl',
     label: 'Bowl',
     kicker: 'Open',
     description: 'A wide rim and a low, generous well.',
-    openingNote: 'The rim stays open, close to the widest point.',
+    openingNote: 'The rim can match the body or flare wider than it.',
   },
 ]
 
@@ -132,9 +133,9 @@ export const PALETTES = [
 ]
 
 export const FORM_PRESETS = {
-  vessel: { height: 22, width: 14, opening: 7.5 },
-  cylinder: { height: 28, width: 11, opening: 9.5 },
-  bowl: { height: 10, width: 26, opening: 24 },
+  vessel: { height: 22, width: 14, opening: 7.5, curve: 10 },
+  cylinder: { height: 28, width: 11, opening: 11, curve: 0 },
+  bowl: { height: 10, width: 26, opening: 24, curve: 10 },
 }
 
 export const DEFAULT_STUDY = {
@@ -144,6 +145,7 @@ export const DEFAULT_STUDY = {
   height: 22,
   width: 14,
   opening: 7.5,
+  curve: 10,
   paletteId: 'celadon',
   finish: 'matte',
 }
